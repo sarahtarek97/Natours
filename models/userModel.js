@@ -1,3 +1,4 @@
+const crypto = require("crypto");
 const bcrypt = require("bcryptjs/dist/bcrypt");
 const mongoose = require("mongoose");
 const slugify = require("slugify");
@@ -17,6 +18,11 @@ const userSchema = new mongoose.Schema({
     validate: [validator.isEmail, "Please provide a valid email!"],
   },
   photo: String,
+  role: {
+    type: String,
+    enum: ["user", "admin", "guide", "lead-guide"],
+    default: "user",
+  },
   password: {
     type: String,
     required: [true, "Please provide a password"],
@@ -35,6 +41,8 @@ const userSchema = new mongoose.Schema({
     },
   },
   passwordChangedAt: Date,
+  passwordResetToken: String,
+  passwordResetExpires: Date,
 });
 
 //use this hook to hash the password before saving it
@@ -66,6 +74,19 @@ userSchema.methods.changedPasswordAfter = function(JWTTimestamp) {
     return JWTTimestamp < changeTimestamp;
   }
   return false;
+};
+
+userSchema.methods.createPasswordResetToken = function() {
+  const resetToken = crypto.randomBytes(32).toString("hex");
+  this.passwordResetToken = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
+
+  this.passwordResetExpires = Date.now() + 10 * 60 * 1000;
+console.log(" this.passwordResetToken", this.passwordResetToken)
+console.log(" resetToken", resetToken)
+  return resetToken;
 };
 
 //create a model from the schema
